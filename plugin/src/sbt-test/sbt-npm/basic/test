@@ -1,0 +1,4 @@
+$ absent package.json
+> npmWritePackageJson
+$ exists package.json
+> check
