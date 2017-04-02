@@ -9,6 +9,7 @@ import PackageJson._
 case class PackageJson(path: sbt.File,
                        name: String,
                        version: String = "0.0.1",
+                       description: String = "",
                        dependencies: Dependencies = Nil,
                        devDependencies: Dependencies = Nil
                       ) extends JsonFile {
@@ -17,6 +18,7 @@ case class PackageJson(path: sbt.File,
     Obj(
       'name -> name,
       'version -> version,
+      'description -> description,
       'dependencies -> Obj(dependencies),
       'devDependencies -> Obj(devDependencies)
     )

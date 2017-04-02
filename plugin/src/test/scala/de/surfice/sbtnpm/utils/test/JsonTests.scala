@@ -23,14 +23,14 @@ object JsonTests extends TestSuite {
     'toJson-{
 //      println(tree.toJson)
       val res =  """{
-          |  'obj': {
-          |    'str': 'String',
-          |    'empty': {},
-          |    'bool': true,
-          |    'int': 1
+          |  "obj": {
+          |    "str": "String",
+          |    "empty": {},
+          |    "bool": true,
+          |    "int": 1
           |  },
-          |  'arr': ['Hello', 42.0],
-          |  'bool': false
+          |  "arr": ["Hello", 42.0],
+          |  "bool": false
           |}""".stripMargin
       assert(res == tree.toJson )
     }
@@ -43,10 +43,10 @@ object JsonTests extends TestSuite {
       ))
       assert(obj.toJson ==
         """{
-          |  'str': 'String',
-          |  'bool': true,
-          |  'int': 42,
-          |  'dbl': 123.456
+          |  "str": "String",
+          |  "bool": true,
+          |  "int": 42,
+          |  "dbl": 123.456
           |}""".stripMargin)
     }
   }

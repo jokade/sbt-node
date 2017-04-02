@@ -3,13 +3,15 @@
 // Description:
 package de.surfice.sbtnpm
 
+import de.surfice.sbtnpm.utils.{ExternalCommand, FileWithLastrun}
 import org.scalajs.sbtplugin.ScalaJSPlugin
 import sbt._
-import sbt.Keys._
+import Keys._
+import Cache._
 
 object NpmPlugin extends AutoPlugin {
 
-  //override lazy val requires = ScalaJSPlugin
+  override lazy val requires = ScalaJSPlugin
 
   // Exported keys
   /**
@@ -24,7 +26,7 @@ object NpmPlugin extends AutoPlugin {
      *
      * @group settings
      */
-    val npmTargetDirectory: SettingKey[File] =
+    val npmTargetDir: SettingKey[File] =
       settingKey[File]("Target directory for node_modules")
 
     /**
@@ -57,23 +59,23 @@ object NpmPlugin extends AutoPlugin {
     val npmPackageJson: SettingKey[PackageJson] =
       settingKey[PackageJson]("Defines the contents of the npm package.json file")
 
-    val npmWritePackageJson: TaskKey[File] =
-      taskKey[File]("Create the npm package.json file.")
+    val npmWritePackageJson: TaskKey[FileWithLastrun] =
+      taskKey[FileWithLastrun]("Create the npm package.json file.")
 
     /**
      *
      * @group tasks
      */
-    val npmInstall: TaskKey[Unit] =
-      taskKey[Unit]("Install npm dependencies")
+    val npmInstall: TaskKey[Long] =
+      taskKey[Long]("Install npm dependencies")
   }
 
   import autoImport._
 
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
-    npmTargetDirectory := baseDirectory.value,
+    npmTargetDir := baseDirectory.value,
 
-    npmPackageJsonFile := npmTargetDirectory.value / "package.json",
+    npmPackageJsonFile := npmTargetDir.value / "package.json",
 
     npmDependencies := Nil,
 
@@ -83,13 +85,32 @@ object NpmPlugin extends AutoPlugin {
       path = npmPackageJsonFile.value,
       name = name.value,
       version = version.value,
-      dependencies = npmDevDependencies.value,
+      description = description.value,
+      dependencies = npmDependencies.value,
       devDependencies = npmDevDependencies.value
     ),
 
     npmWritePackageJson := {
-      npmPackageJson.value.writeFile()(streams.value.log)
-      npmPackageJsonFile.value
+      import Cache._
+      val file = npmPackageJsonFile.value
+      val lastrun = npmWritePackageJson.previous
+      if(lastrun.isEmpty || lastrun.get.needsUpdateComparedToConfig(baseDirectory.value)) {
+        npmPackageJson.value.writeFile()(streams.value.log)
+        FileWithLastrun(file)
+      }
+      else
+        lastrun.get
+    },
+
+    npmInstall := {
+      val file = npmWritePackageJson.value
+      val lastrun = npmInstall.previous
+      if(lastrun.isEmpty || file.lastrun>lastrun.get) {
+        ExternalCommand.npm.install(npmTargetDir.value,streams.value.log)
+        new java.util.Date().getTime
+      }
+      else
+        lastrun.get
     }
   )
 }

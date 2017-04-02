@@ -1,4 +1,6 @@
 $ absent package.json
-> npmWritePackageJson
+$ absent node_modules
+> npmInstall
 $ exists package.json
+$ exists node_modules/rxjs/Rx.js
 > check

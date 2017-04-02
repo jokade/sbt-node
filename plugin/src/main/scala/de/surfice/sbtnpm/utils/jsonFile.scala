@@ -71,7 +71,7 @@ object JsonWriter {
 
     override def write(node: JsonNode, prefix: String = "", suffix: String = ""): Unit = node match {
       case Str(value) =>
-        builder ++= "'" + value + "'" + suffix
+        builder ++= "\"" + value + "\"" + suffix
       case Bool(value) =>
         builder ++= value.toString + suffix
       case INum(value) =>
@@ -87,7 +87,7 @@ object JsonWriter {
           val kn = p._1
           if(p._2 > 0)
             builder ++= ",\n"
-          builder ++= incPrefix + "'" + kn._1 + "': "
+          builder ++= incPrefix + "\"" + kn._1 + "\": "
           write(kn._2,incPrefix)
         }
         builder ++= "\n" + prefix + "}"

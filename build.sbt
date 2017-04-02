@@ -16,7 +16,7 @@ lazy val sharedSettings = Seq(
   testFrameworks += new TestFramework("utest.runner.Framework"),
   scalacOptions ++= (if (isSnapshot.value) Seq.empty else Seq({
         val a = baseDirectory.value.toURI.toString.replaceFirst("[^/]+/?$", "")
-        val g = "https://raw.githubusercontent.com/jokade/sbt-npm"
+        val g = "https://raw.githubusercontent.com/jokade/sbt-node"
         s"-P:scalajs:mapSourceURI:$a->$g/v${version.value}/"
       }))
 )
@@ -24,17 +24,24 @@ lazy val sharedSettings = Seq(
 lazy val plugin = project
   .settings(sharedSettings ++ scriptedSettings ++ publishingSettings: _*)
   .settings(
-    name := "sbt-npm",
+    name := "sbt-node",
     sbtPlugin := true,
     addSbtPlugin("org.scala-js" % "sbt-scalajs" % Version.scalajs)
   )
 
+//lazy val sassPlugin = project
+//  .dependsOn(plugin)
+//  .settings(sharedSettings ++ scriptedSettings ++ publishingSettings: _*)
+//  .settings(
+//    name := "sbt-node-sass",
+//    sbtPlugin := true
+//  )
 
 lazy val root = project.in(file("."))
   .aggregate(plugin)
   .settings(sharedSettings ++ dontPublish: _*)
   .settings( 
-    name := "SBT NPM"
+    name := "sbt-node"
   )
 
 
@@ -48,7 +55,7 @@ lazy val publishingSettings = Seq(
       Some("releases"  at nexus + "service/local/staging/deploy/maven2")
   },
   pomExtra := (
-    <url>https://github.com/jokade/sbt-npm</url>
+    <url>https://github.com/jokade/sbt-node</url>
     <licenses>
       <license>
         <name>MIT License</name>
@@ -56,8 +63,8 @@ lazy val publishingSettings = Seq(
       </license>
     </licenses>
     <scm>
-      <url>git@github.com:jokade/sbt-npm</url>
-      <connection>scm:git:git@github.com:jokade/sbt-npm.git</connection>
+      <url>git@github.com:jokade/sbt-node</url>
+      <connection>scm:git:git@github.com:jokade/sbt-node.git</connection>
     </scm>
     <developers>
       <developer>
