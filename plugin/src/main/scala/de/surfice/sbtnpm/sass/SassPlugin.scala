@@ -1,4 +1,4 @@
-//     Project: SBT NPM
+//     Project: sbt-node
 //      Module:
 // Description:
 package de.surfice.sbtnpm.sass
@@ -8,7 +8,8 @@ import de.surfice.sbtnpm.NpmPlugin.autoImport._
 import de.surfice.sbtnpm.utils.{ExternalCommand, NodeCommand}
 import org.scalajs.sbtplugin.{ScalaJSPluginInternal, Stage}
 import sbt._
-import sbt.Keys._
+import Keys._
+import Cache._
 
 object SassPlugin extends AutoPlugin {
 
@@ -40,8 +41,8 @@ object SassPlugin extends AutoPlugin {
     val nodeSassInputs: TaskKey[Seq[Attributed[(File,String)]]] =
       taskKey("Contains all sass input files to be processed (may be scoped to fastOptJS and fullOptJS)")
 
-    val nodeSass: TaskKey[Unit] =
-      taskKey[Unit]("Runs the sass compiler")
+    val nodeSass: TaskKey[Long] =
+      taskKey[Long]("Runs the sass compiler")
   }
 
   import autoImport._
@@ -84,15 +85,24 @@ object SassPlugin extends AutoPlugin {
       case config: Configuration => (nodeSass in config, nodeSassInputs in config, nodeSassTarget in config)
     }
     task := {
+      val lastrun = task.previous
       npmInstall.value
       val cwd = targetDir.value
       val sass = nodeSassCmd.value
       val logger = streams.value.log
-//      logger.info(s"compiling sass files: ${inputs.value.data.mkString(", ")}")
-      inputs.value.foreach { f =>
-        val (src,dest) = f.data
-        sass.run(src.getAbsolutePath, (cwd / dest).getAbsolutePath)(cwd,logger)
+      var modified = false
+      inputs.value.foreach{ f =>
+        val (src,relDest) = f.data
+        val dest = cwd / relDest
+        if(lastrun.isEmpty || !dest.exists() || src.lastModified()>lastrun.get) {
+          sass.run(src.getAbsolutePath, dest.getAbsolutePath)(cwd,logger)
+          modified = true
+        }
       }
+      if(modified)
+        new java.util.Date().getTime
+      else
+        lastrun.get
     }
   }
 
@@ -105,7 +115,7 @@ object SassPlugin extends AutoPlugin {
       Attributed.blankSeq( sourceDirs.value flatMap { dir =>
         val fs = (dir ** "*").get.filter{ f =>
           val name = f.getName
-          f.isFile && !name.startsWith("_") && name.endsWith(".scss")
+          f.isFile && !name.startsWith("_") && ( name.endsWith(".scss") || name.endsWith(".sass") || name.endsWith(".css") )
         }
         fs.map{ f =>
           val path = f.relativeTo(dir).get.getPath
@@ -119,14 +129,12 @@ object SassPlugin extends AutoPlugin {
   private def defineSassSourceDirectories(scope: Any) = scope match {
     case scoped: Scoped =>
       nodeSassSourceDirectories in (Compile,scoped) := (resourceDirectories in (Compile,scoped)).value
-//      nodeSassSourceDirectories in (Test,scoped) := (resourceDirectories in (Test,scoped)).value
     case config: Configuration => nodeSassSourceDirectories in config := (resourceDirectories in config).value
   }
 
   private def defineSassTarget(scope: Any) = scope match {
     case scoped: Scoped =>
       nodeSassTarget in (Compile,scoped) := (crossTarget in (Compile,scoped)).value / "css"
-//      nodeSassTarget in (Compile,scoped) := (crossTarget in (Compile,scoped)).value / "css"
     case config: Configuration =>
       nodeSassTarget in config := (crossTarget in config).value / "css"
   }
