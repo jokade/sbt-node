@@ -6,7 +6,7 @@ package de.surfice.sbtnpm.systemjs
 import sbt._
 import Keys._
 import Cache._
-import de.surfice.sbtnpm.NpmPlugin
+import de.surfice.sbtnpm.{NpmPlugin, utils}
 import de.surfice.sbtnpm.utils.FileWithLastrun
 import org.scalajs.sbtplugin.{ScalaJSPluginInternal, Stage}
 
@@ -22,8 +22,11 @@ object SystemJSPlugin extends AutoPlugin {
     val systemJSFile: SettingKey[File] =
       settingKey("Path to the systemjs.config.js file (scoped to fastOptJS or fullOptJS)")
 
+    val systemJSPaths: SettingKey[Iterable[(String,String)]] =
+      settingKey("Entries to be put into the System.js config 'paths' object")
+
     val systemJSMappings: SettingKey[Iterable[(String,String)]] =
-      settingKey("Entries to be put into the System.js 'map' object (the key 'app' is assigned automatically!)")
+      settingKey("Entries to be put into the System.js config 'map' object (the key 'app' is assigned automatically!)")
 
     val systemJSPackages: SettingKey[Iterable[(String,SystemJSPackage)]] =
       settingKey("System.js package definitions (the package 'app' is defined automatically!)")
@@ -33,6 +36,7 @@ object SystemJSPlugin extends AutoPlugin {
   }
 
   import autoImport._
+  import NpmPlugin.autoImport._
 
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
   ) ++
@@ -46,6 +50,7 @@ object SystemJSPlugin extends AutoPlugin {
 
     Seq(
       defineSystemJSFile(stageTask),
+      defineSystemJSPaths(stageTask),
       defineSystemJSMappings(stageTask),
       defineSystemJSPackages(stageTask),
       defineSystemJSTask(stageTask)
@@ -54,8 +59,19 @@ object SystemJSPlugin extends AutoPlugin {
 
   private def defineSystemJSFile(scope: Any) = scope match {
     case scoped: Scoped =>
-      systemJSFile in scoped := (crossTarget in (Compile,scoped)).value / s"systemjs-${scoped.key.toString.toLowerCase}.config.js"
+      systemJSFile in scoped := utils.fileWithScalaJSStageSuffix((crossTarget in (Compile,scoped)).value,"systemjs-",scoped,".config.js")
   }
+
+  private def defineSystemJSPaths(scoped: Scoped) =
+    systemJSPaths in scoped := Seq(
+      "npm" -> {
+        val node_modules = npmNodeModulesDir.value
+//        val config = (systemJSFile in scoped).value
+//        println(node_modules)
+//        println(config)
+        node_modules.getAbsolutePath
+      }
+    )
 
   private def defineSystemJSMappings(scoped: Scoped) =
       systemJSMappings in scoped := Seq( "app" -> (crossTarget in (Compile,scoped)).value.relativeTo(baseDirectory.value).get.getPath )
@@ -74,6 +90,7 @@ object SystemJSPlugin extends AutoPlugin {
       if(lastrun.isEmpty || file.needsUpdateComparedToConfig(baseDirectory.value)) {
         writeSystemJSFile(
           file = file.file,
+          paths = (systemJSPaths in scoped).value,
           mappings = (systemJSMappings in scoped).value,
           packages = (systemJSPackages in scoped).value)
         new java.util.Date().getTime
@@ -83,15 +100,19 @@ object SystemJSPlugin extends AutoPlugin {
     }
 
   private def writeSystemJSFile(file: File,
+                                paths: Iterable[(String,String)],
                                 mappings: Iterable[(String,String)],
                                 packages: Iterable[(String,SystemJSPackage)]): Unit = {
     val js =
       s"""(function (global) {
          |  System.config({
          |    paths: {
-         |${mappings.map(kv => "      '"+kv._1+"': '"+kv._2+"'").mkString(",\n")}
+         |${paths.map(kv => "      '"+kv._1+"': '"+kv._2+"'").mkString(",\n")}
          |    },
          |    map: {
+         |${mappings.map(kv => "      '"+kv._1+"': '"+kv._2+"'").mkString(",\n")}
+         |    },
+         |    packages: {
          |${packages.map(kv => "      '"+kv._1+"': "+kv._2.toJS("        ")).mkString(",\n")}
          |    }
          |  });

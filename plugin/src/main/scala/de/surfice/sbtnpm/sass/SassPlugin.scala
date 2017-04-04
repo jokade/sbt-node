@@ -50,7 +50,7 @@ object SassPlugin extends AutoPlugin {
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
     nodeSassVersion := "~4.5.2",
 
-    nodeSassCmd := NodeCommand(npmTargetDir.value,"node-sass","node-sass"),
+    nodeSassCmd := NodeCommand(npmNodeModulesDir.value,"node-sass","node-sass"),
 
     defineSassSourceDirectories(Compile),
 

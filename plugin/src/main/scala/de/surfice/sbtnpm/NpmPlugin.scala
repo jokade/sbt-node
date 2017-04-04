@@ -29,6 +29,9 @@ object NpmPlugin extends AutoPlugin {
     val npmTargetDir: SettingKey[File] =
       settingKey[File]("Target directory for node_modules")
 
+    val npmNodeModulesDir: SettingKey[File] =
+      settingKey("Path to the node_modules dir")
+
     /**
       * List of the NPM packages (name and version) your application depends on.
       * You can use [semver](https://docs.npmjs.com/misc/semver) versions:
@@ -75,6 +78,8 @@ object NpmPlugin extends AutoPlugin {
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
     npmTargetDir := baseDirectory.value,
 
+    npmNodeModulesDir := npmTargetDir.value / "node_modules",
+
     npmPackageJsonFile := npmTargetDir.value / "package.json",
 
     npmDependencies := Nil,
@@ -91,7 +96,6 @@ object NpmPlugin extends AutoPlugin {
     ),
 
     npmWritePackageJson := {
-      import Cache._
       val file = npmPackageJsonFile.value
       val lastrun = npmWritePackageJson.previous
       if(lastrun.isEmpty || lastrun.get.needsUpdateComparedToConfig(baseDirectory.value)) {
