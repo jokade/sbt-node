@@ -11,7 +11,9 @@ case class PackageJson(path: sbt.File,
                        version: String = "0.0.1",
                        description: String = "",
                        dependencies: Dependencies = Nil,
-                       devDependencies: Dependencies = Nil
+                       devDependencies: Dependencies = Nil,
+                       main : Option[String] = None,
+                       scripts: Seq[(String,String)] = Nil
                       ) extends JsonFile {
   override def json: JsonNode = {
     import JsonNode._
@@ -20,7 +22,9 @@ case class PackageJson(path: sbt.File,
       'version -> version,
       'description -> description,
       'dependencies -> Obj(dependencies),
-      'devDependencies -> Obj(devDependencies)
+      'devDependencies -> Obj(devDependencies),
+      'main -> main.getOrElse(""),
+      'scripts -> Obj(scripts)
     )
   }
 }

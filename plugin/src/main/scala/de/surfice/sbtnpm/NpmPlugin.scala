@@ -71,6 +71,12 @@ object NpmPlugin extends AutoPlugin {
      */
     val npmInstall: TaskKey[Long] =
       taskKey[Long]("Install npm dependencies")
+
+    val npmMain: SettingKey[Option[String]] =
+      settingKey[Option[String]]("package.json 'main' property")
+
+    val npmScripts: SettingKey[Seq[(String,String)]] =
+      settingKey[Seq[(String,String)]]("npm scripts")
   }
 
   import autoImport._
@@ -86,13 +92,18 @@ object NpmPlugin extends AutoPlugin {
 
     npmDevDependencies := Nil,
 
+    npmMain := None,
+
+    npmScripts := Nil,
+
     npmPackageJson := PackageJson(
       path = npmPackageJsonFile.value,
       name = name.value,
       version = version.value,
       description = description.value,
       dependencies = npmDependencies.value,
-      devDependencies = npmDevDependencies.value
+      devDependencies = npmDevDependencies.value,
+      main = npmMain.value
     ),
 
     npmWritePackageJson := {
