@@ -6,6 +6,7 @@ Plugins for integration of Node.js based build tools with sbt.
 * [Plugins](#plugins)
   * [NpmPlugin](#npmplugin)
   * [SystemJSPlugin](#systemjsplugin)
+  * [LiteServerPlugin](#liteserverplugin)
 
 ## Getting Started
 
@@ -21,6 +22,10 @@ lazy val root = project.in(file("."))
 ```
 
 ## Plugins
+The following sections list the sbt settings and tasks provided by each plugin.
+
+**Note**: If a plugin task depends on configuration files generated from settings (e.g. `package.json`), then these files will be updated if required, and the tasks using those files (e.g. `npmInstall`) will be run will be automatically.
+
 ### NpmPlugin
 This is the foundation required by all other plugins, but it can also be used on its own.
 It provides integration with the `npm` tool:
@@ -30,11 +35,11 @@ It provides integration with the `npm` tool:
 
 #### Settings
 - **`npmTargetDir`**: the root directory of the Node.js project; `node_modules` will usually be installed here
-- **`npmDependencies`**: list of npm dependencies (name and version) the application/ library depends on at run time.\\ 
+- **`npmDependencies`**: list of npm dependencies (name and version) the application/ library depends on at run time.<br/> 
   *Example*: `npmDependencies ++= Seq("rxjs" -> "^5.0.1")`
-- **`npmDevDependencies`**: list of npm compile time / development dependencies.\\ 
+- **`npmDevDependencies`**: list of npm compile time / development dependencies.<br/>
   *Example*: `npmDevDependencies ++= "Seq("lite-server" -> "^2.2.2")`
-- **`npmScripts`**: map of `script` entries to be added to the `package.json` file.\\ 
+- **`npmScripts`**: map of `script` entries to be added to the `package.json` file.<br/>
   *Example*: `npmScripts ++= Seq( "start" -> "lite-server" )`
   
 #### Tasks
@@ -43,3 +48,20 @@ It provides integration with the `npm` tool:
 
 ### SystemJSPlugin
 TBD
+
+### LiteServerPlugin
+Configure and run `lite-server` from within sbt.
+#### Settings
+- **`liteServerVersion`**: version of `lite-server` to be used.
+- **`liteServerConfigFile`**: path to the `lite-server` config file (scoped to `fastOptJS` or `fullOptJS`.<br/>
+  *Example*: `liteServerConfigFile in (Compile, fastOptJS) := baseDirectory.value / "my-config.json"`
+- **`liteServerBaseDir`**: base directory from which files are served (scoped to `fastOptJS` or `fullOptJS`).
+- **`liteServerIndexFile`**: path to the `index.html` file (scoped to `fastOptJS` or `fullOptJS`).
+- **`liteServerRoutes`**: entries to be put in the lite-server config `routes` object (scoped to `fastOptJS` or `fullOptJS`).
+
+#### Tasks
+- **`liteServerWriteConfigFile`**: writes the `lite-server` configuration file.
+- **`liteServerWriteIndexFile`**: writes the `index.html` file for the specified stage (`fastOptJS` or `fullOptJS`).
+- **`liteServerStart`**: starts the `lite-server` for the specified stage (`fastOptJS` or `fullOptJS`).<br/>
+  *Example*: `> fastOptJS/liteServerStart`
+- **`liteServerStop`**: stops the `lite-server` for the specified stage (`fastOptJS` or `fullOptJS`).
