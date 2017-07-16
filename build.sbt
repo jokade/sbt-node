@@ -1,24 +1,21 @@
-version in ThisBuild := "0.0.1-SNAPSHOT"
+version in ThisBuild := "0.0.1"
 
 scalaVersion in ThisBuild := "2.10.6"
 
 organization in ThisBuild := "de.surfice"
 
-lazy val Version = new {
-  val scalajs = "0.6.15"
-}
 
 lazy val sharedSettings = Seq(
   scalacOptions ++= Seq("-deprecation","-unchecked","-feature","-Xlint"),
   libraryDependencies ++= Seq(
     "com.lihaoyi" % "utest_2.10" % "0.4.5"
   ),
-  testFrameworks += new TestFramework("utest.runner.Framework"),
-  scalacOptions ++= (if (isSnapshot.value) Seq.empty else Seq({
-        val a = baseDirectory.value.toURI.toString.replaceFirst("[^/]+/?$", "")
-        val g = "https://raw.githubusercontent.com/jokade/sbt-node"
-        s"-P:scalajs:mapSourceURI:$a->$g/v${version.value}/"
-      }))
+  testFrameworks += new TestFramework("utest.runner.Framework")
+//  scalacOptions ++= (if (isSnapshot.value) Seq.empty else Seq({
+//        val a = baseDirectory.value.toURI.toString.replaceFirst("[^/]+/?$", "")
+//        val g = "https://raw.githubusercontent.com/jokade/sbt-node"
+//        s"-P:scalajs:mapSourceURI:$a->$g/v${version.value}/"
+//      }))
 )
 
 lazy val plugin = project
@@ -26,7 +23,7 @@ lazy val plugin = project
   .settings(
     name := "sbt-node",
     sbtPlugin := true,
-    addSbtPlugin("org.scala-js" % "sbt-scalajs" % Version.scalajs)
+    addSbtPlugin("org.scala-js" % "sbt-scalajs" % scalaJSVersion)
   )
 
 //lazy val sassPlugin = project

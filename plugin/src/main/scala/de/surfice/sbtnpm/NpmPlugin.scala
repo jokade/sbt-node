@@ -8,6 +8,7 @@ import org.scalajs.sbtplugin.ScalaJSPlugin
 import sbt._
 import Keys._
 import Cache._
+import sbt.complete.Parser
 
 object NpmPlugin extends AutoPlugin {
 
@@ -72,16 +73,26 @@ object NpmPlugin extends AutoPlugin {
     val npmInstall: TaskKey[Long] =
       taskKey[Long]("Install npm dependencies")
 
+    val npmRunScript: InputKey[Unit] =
+      inputKey[Unit]("Run the specified npm script")
+
     val npmMain: SettingKey[Option[String]] =
       settingKey[Option[String]]("package.json 'main' property")
 
     val npmScripts: SettingKey[Seq[(String,String)]] =
       settingKey[Seq[(String,String)]]("npm scripts")
+
+    val npmCmd: SettingKey[ExternalCommand] =
+      settingKey[ExternalCommand]("npm command")
+
   }
+
 
   import autoImport._
 
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
+    npmCmd := ExternalCommand("npm"),
+
     npmTargetDir := baseDirectory.value,
 
     npmNodeModulesDir := npmTargetDir.value / "node_modules",
@@ -103,7 +114,8 @@ object NpmPlugin extends AutoPlugin {
       description = description.value,
       dependencies = npmDependencies.value,
       devDependencies = npmDevDependencies.value,
-      main = npmMain.value
+      main = npmMain.value,
+      scripts = npmScripts.value
     ),
 
     npmWritePackageJson := {
@@ -126,6 +138,14 @@ object NpmPlugin extends AutoPlugin {
       }
       else
         lastrun.get
+    },
+
+    npmRunScript := {
+      import complete.DefaultParsers._
+
+      npmInstall.value
+      val script = spaceDelimited("<arg>").parsed.head
+      ExternalCommand.npm.start("run-script",script)(streams.value.log,waitAndKillOnInput = true)
     }
   )
 }
