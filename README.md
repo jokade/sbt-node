@@ -1,6 +1,12 @@
 # sbt-node
 Plugins for integration of Node.js based build tools with sbt.
 
+#### Contents:
+* [Getting Started](#getting-started)
+* [Plugins](#plugins)
+  * [NpmPlugin](#npmplugin)
+  * [SystemJSPlugin](#systemjsplugin)
+
 ## Getting Started
 
 Add this to your `project/plugins.sbt`
