@@ -54,7 +54,7 @@ object LiteServerPlugin extends AutoPlugin {
   import NpmPlugin.autoImport._
 
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
-    liteServerVersion := "~2.3.0",
+    liteServerVersion := de.surfice.sbtnpm.Versions.liteServer,
 
     liteServerCmd := NodeCommand(npmNodeModulesDir.value,"lite-server","lite-server"),
 
@@ -87,7 +87,13 @@ object LiteServerPlugin extends AutoPlugin {
     liteServerBaseDir in scoped := (crossTarget in (Compile,scoped)).value
 
   private def defineLiteServerIndexFile(scoped: Scoped) =
-    liteServerIndexFile in scoped := utils.fileWithScalaJSStageSuffix((resourceDirectory in (Compile,scoped)).value,"index-",scoped,".html")
+    liteServerIndexFile in scoped := {
+      val baseDir = (resourceDirectory in (Compile,scoped)).value
+      if(scoped.key.label == "fastOptJS")
+        utils.fileWithScalaJSStageSuffix(baseDir,"index-",scoped,".html")
+      else
+        baseDir / "index.html"
+    }
 
   private def defineLiteServerRoutes(scoped: Scoped) =
     liteServerRoutes in scoped := Seq("/node_modules/" -> npmNodeModulesDir.value.getAbsolutePath)
@@ -134,7 +140,9 @@ object LiteServerPlugin extends AutoPlugin {
   private def defineLiteServerWriteIndexFile(scoped: Scoped) =
     liteServerWriteIndexFile in scoped := {
       val src = (liteServerIndexFile in scoped).value
-      val dest = utils.fileWithScalaJSStageSuffix((liteServerBaseDir in scoped).value,"index-",scoped,".html")
+      val basedir = (liteServerBaseDir in scoped).value
+      val dest = basedir / src.getName
+//      val dest = utils.fileWithScalaJSStageSuffix((liteServerBaseDir in scoped).value,"index-",scoped,".html")
       IO.copy(Seq((src,dest)),overwrite = true)
       dest
     }

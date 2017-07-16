@@ -14,6 +14,7 @@ object JsonNode {
   protected[this] sealed trait Value[T] extends JsonNode {
     def value: T
   }
+  case class Raw(value: String) extends Value[String]
   case class Str(value: String) extends Value[String]
   case class Bool(value: Boolean) extends Value[Boolean]
   sealed trait Num[T] extends Value[T]
@@ -23,6 +24,7 @@ object JsonNode {
   }
   case class DNum(value: Double) extends Num[Double]
   case class INum(value: Int) extends Num[Int]
+  case class RegExp(value: String) extends Value[String]
 
   implicit def strToNode(value: String): JsonNode = Str(value)
   implicit def boolToNoe(value: Boolean): JsonNode = Bool(value)
@@ -52,9 +54,11 @@ object JsonNode {
   }
 
   implicit final class RichJsonNode(val node: JsonNode) extends AnyVal {
-    def toJson: String = {
+    def toJson: String = toJson("")
+
+    def toJson(prefix: String): String = {
       val w = new JsonWriter.StringWriter
-      w.write(node)
+      w.write(node,prefix)
       w.builder.toString()
     }
   }
@@ -70,6 +74,8 @@ object JsonWriter {
     val builder = StringBuilder.newBuilder
 
     override def write(node: JsonNode, prefix: String = "", suffix: String = ""): Unit = node match {
+      case Raw(value) =>
+        builder ++= value + suffix
       case Str(value) =>
         builder ++= "\"" + value + "\"" + suffix
       case Bool(value) =>
@@ -78,6 +84,8 @@ object JsonWriter {
         builder ++= value + suffix
       case DNum(value) =>
         builder ++= value + suffix
+      case RegExp(value) =>
+        builder ++= "/" + value + "/" +suffix
       case Obj(nodes) if nodes.isEmpty =>
         builder ++= "{}"
       case Obj(nodes) =>
@@ -102,6 +110,12 @@ object JsonWriter {
         builder ++= "]"
     }
   }
+
+//  def string(node: JsonNode, prefix: String = "", suffix: String): String = {
+//    val w = new StringWriter
+//    w.write(node,prefix,suffix)
+//    w.builder.toString
+//  }
 }
 
 abstract class JsonFile {

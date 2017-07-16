@@ -5,12 +5,16 @@ package de.surfice.sbtnpm.utils
 import sbinary.{Input, Output}
 import sbt._
 
+import scala.annotation.tailrec
+
 case class FileWithLastrun(file: File, lastrun: Long) {
   def needsUpdate: Boolean = !file.exists() || file.lastModified > lastrun
   def needsUpdate(reference: sbt.File): Boolean =
     needsUpdate || reference.lastModified() > lastrun
-  def needsUpdateComparedToConfig(projectRoot: File): Boolean =
-    FileWithLastrun.configNewerThanTimestamp(projectRoot,lastrun) || needsUpdate
+  def needsUpdateComparedToConfig(baseDir: File): Boolean =
+    FileWithLastrun.configNewerThanTimestamp(
+      FileWithLastrun.findProjectRoot(baseDir),
+      lastrun) || needsUpdate
 }
 object FileWithLastrun {
   def apply(file: sbt.File): FileWithLastrun = apply(file,new java.util.Date().getTime)
@@ -23,6 +27,18 @@ object FileWithLastrun {
     }
     _configClassesDir.lastModified > lastrun
   }
+
+  // TODO: handle detection of project root directories without build.sbt
+  @tailrec
+  private def findProjectRoot(baseDir: File): File =
+    if(baseDir.isDirectory && (baseDir / "build.sbt").canRead) {
+      baseDir
+    }
+    else if(baseDir.getParentFile == baseDir)
+      throw new RuntimeException("Could not locate project root")
+    else
+      findProjectRoot(baseDir.getParentFile)
+
 
   implicit object format extends sbinary.Format[FileWithLastrun] {
     import sbt.Cache._

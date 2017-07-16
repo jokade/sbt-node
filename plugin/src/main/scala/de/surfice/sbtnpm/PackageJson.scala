@@ -21,8 +21,8 @@ case class PackageJson(path: sbt.File,
       'name -> name,
       'version -> version,
       'description -> description,
-      'dependencies -> Obj(dependencies),
-      'devDependencies -> Obj(devDependencies),
+      'dependencies -> Obj(dependencies.toMap),
+      'devDependencies -> Obj(devDependencies.toMap),
       'main -> main.getOrElse(""),
       'scripts -> Obj(scripts)
     )

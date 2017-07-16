@@ -3,6 +3,8 @@
 // Description:
 package de.surfice.sbtnpm.utils
 
+import java.nio.file.Files
+
 import sbt.{Level, _}
 
 /**
@@ -10,6 +12,8 @@ import sbt.{Level, _}
  */
 trait ExternalCommand {
   def run(args: String*)(workingDir: File, logger: Logger): Unit = {
+    val cmd = cmdPath +: args
+    logger.debug(s"running npm command '${cmd mkString " "}' in directory $workingDir")
     ExternalCommand.execute(cmdPath +: args, workingDir, logger)
   }
 
@@ -60,7 +64,7 @@ object ExternalCommand {
   case class Impl(cmdPath: String) extends ExternalCommand
 
   def execute(cmdLine: Seq[String], cwd: sbt.File, logger: Logger): Unit = {
-    val ret = Process(cmdLine) ! logger
+    val ret = Process(cmdLine,Some(cwd)) ! logger
 
     if(ret != 0)
       sys.error(s"Non-zero exit code from command ${cmdLine.head}")
@@ -87,6 +91,19 @@ object ExternalCommand {
           wrapped.log(lvl,msg)
       }
     }
-    def install(npmTargetDir: File, logger: Logger): Unit = run("install")(npmTargetDir,new NpmLogger(logger))
+    def install(npmTargetDir: File, npmModulesDir: File, logger: Logger): Unit = {
+      val localModulesDir = npmTargetDir / "node_modules"
+      if(localModulesDir != npmModulesDir) {
+        // create a link to the npmModulesDir if it does not exist yet
+        if(!localModulesDir.exists()) {
+          if(!npmModulesDir.exists())
+            IO.createDirectory(npmModulesDir)
+          logger.info(s"creating link '$localModulesDir' to NPM modules in '$npmModulesDir'")
+          Files.createSymbolicLink(localModulesDir.toPath,npmModulesDir.toPath)
+        }
+      }
+      logger.info("installing NPM packages")
+      run("install")(npmTargetDir,new NpmLogger(logger))
+    }
   }
 }

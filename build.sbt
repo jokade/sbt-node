@@ -1,8 +1,17 @@
-version in ThisBuild := "0.0.1"
+version in ThisBuild := "0.0.2-SNAPSHOT"
 
 scalaVersion in ThisBuild := "2.10.6"
 
 organization in ThisBuild := "de.surfice"
+
+// default versions of npm packages required by plugins
+val Versions = new {
+  val liteServer   = "^2.3.0"
+  val webpack      = "^3.3.0"
+  val css_loader   = "^0.28.4"
+  val html_loader  = "^0.4.5"
+  val style_loader = "^0.18.2"
+}
 
 
 lazy val sharedSettings = Seq(
@@ -23,16 +32,22 @@ lazy val plugin = project
   .settings(
     name := "sbt-node",
     sbtPlugin := true,
-    addSbtPlugin("org.scala-js" % "sbt-scalajs" % scalaJSVersion)
+    addSbtPlugin("org.scala-js" % "sbt-scalajs" % scalaJSVersion),
+    sourceGenerators in Compile += Def.task {
+      val file = (sourceManaged in Compile).value / "Version.scala"
+      IO.write(file,
+        s"""package de.surfice.sbtnpm
+        |object Versions { 
+        |  val liteServer = "${Versions.liteServer}"
+        |  val webpack = "${Versions.webpack}"
+        |  val style_loader = "${Versions.style_loader}"
+        |  val css_loader = "${Versions.css_loader}"
+        |  val html_loader = "${Versions.html_loader}"
+        |}
+        """.stripMargin)
+      Seq(file)
+    }.taskValue
   )
-
-//lazy val sassPlugin = project
-//  .dependsOn(plugin)
-//  .settings(sharedSettings ++ scriptedSettings ++ publishingSettings: _*)
-//  .settings(
-//    name := "sbt-node-sass",
-//    sbtPlugin := true
-//  )
 
 lazy val root = project.in(file("."))
   .aggregate(plugin)
