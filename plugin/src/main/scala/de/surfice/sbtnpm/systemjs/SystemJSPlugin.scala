@@ -22,16 +22,16 @@ object SystemJSPlugin extends AutoPlugin {
     val systemJSFile: SettingKey[File] =
       settingKey("Path to the systemjs.config.js file (scoped to fastOptJS or fullOptJS)")
 
-    val systemJSPaths: SettingKey[Iterable[(String,String)]] =
+    val systemJSPaths: SettingKey[Seq[(String,String)]] =
       settingKey("Entries to be put into the System.js config 'paths' object")
 
-    val systemJSMappings: SettingKey[Iterable[(String,String)]] =
+    val systemJSMappings: SettingKey[Seq[(String,String)]] =
       settingKey("Entries to be put into the System.js config 'map' object (the key 'app' is assigned automatically!)")
 
-    val systemJSPackages: SettingKey[Iterable[(String,SystemJSPackage)]] =
+    val systemJSPackages: SettingKey[Seq[(String,SystemJSPackage)]] =
       settingKey("System.js package definitions (the package 'app' is defined automatically!)")
 
-    val systemJS: TaskKey[Long] =
+    val systemJS: TaskKey[FileWithLastrun] =
       taskKey("Writes the System.js config file for the current stage (fastOptJS, fullOptJS)")
   }
 
@@ -64,17 +64,12 @@ object SystemJSPlugin extends AutoPlugin {
 
   private def defineSystemJSPaths(scoped: Scoped) =
     systemJSPaths in scoped := Seq(
-      "npm" -> {
-        val node_modules = npmNodeModulesDir.value
-//        val config = (systemJSFile in scoped).value
-//        println(node_modules)
-//        println(config)
-        node_modules.getAbsolutePath
-      }
+      "npm:" -> "node_modules/"
     )
 
   private def defineSystemJSMappings(scoped: Scoped) =
-      systemJSMappings in scoped := Seq( "app" -> (crossTarget in (Compile,scoped)).value.relativeTo(baseDirectory.value).get.getPath )
+    systemJSMappings in scoped := Seq( "app" -> "./" )
+//      systemJSMappings in scoped := Seq( "app" -> (crossTarget in (Compile,scoped)).value.relativeTo(baseDirectory.value).get.getPath )
 
   private def defineSystemJSPackages(scoped: Scoped) =
       systemJSPackages in scoped := Seq( "app" -> SystemJSPackage(
@@ -86,14 +81,15 @@ object SystemJSPlugin extends AutoPlugin {
   private def defineSystemJSTask(scoped: Scoped) =
     systemJS in scoped := {
       val lastrun = (systemJS in scoped).previous
-      val file = FileWithLastrun((systemJSFile in scoped).value,lastrun.getOrElse(0))
-      if(lastrun.isEmpty || file.needsUpdateComparedToConfig(baseDirectory.value)) {
+      val file = (systemJSFile in scoped).value
+
+      if(lastrun.isEmpty || lastrun.get.needsUpdateComparedToConfig(baseDirectory.value)) {
         writeSystemJSFile(
-          file = file.file,
+          file = file,
           paths = (systemJSPaths in scoped).value,
           mappings = (systemJSMappings in scoped).value,
           packages = (systemJSPackages in scoped).value)
-        new java.util.Date().getTime
+        FileWithLastrun(file)
       }
       else
         lastrun.get
