@@ -6,13 +6,16 @@ package de.surfice.sbtnpm.systemjs
 import sbt._
 import Keys._
 import Cache._
+import de.surfice.sbtnpm.assets.AssetsPlugin
+import de.surfice.sbtnpm.liteserver.LiteServerPlugin
 import de.surfice.sbtnpm.{NpmPlugin, utils}
 import de.surfice.sbtnpm.utils.FileWithLastrun
 import org.scalajs.sbtplugin.{ScalaJSPluginInternal, Stage}
 
 object SystemJSPlugin extends AutoPlugin {
 
-  override lazy val requires = NpmPlugin
+
+  override lazy val requires = NpmPlugin && AssetsPlugin && LiteServerPlugin
 
   /**
    * @groupname tasks Tasks
@@ -36,12 +39,21 @@ object SystemJSPlugin extends AutoPlugin {
   }
 
   import autoImport._
-  import NpmPlugin.autoImport._
+  import AssetsPlugin.autoImport._
+  import LiteServerPlugin.autoImport._
+  import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
   ) ++
     perScalaJSStageSettings(Stage.FullOpt) ++
-    perScalaJSStageSettings(Stage.FastOpt)
+    perScalaJSStageSettings(Stage.FastOpt) ++
+  Seq(
+
+    (fastOptJS in Compile) := (fastOptJS in Compile).dependsOn(systemJS in fastOptJS).value,
+    (fullOptJS in Compile) := (fullOptJS in Compile).dependsOn(systemJS in fullOptJS).value
+//    liteServerPrepare in fastOptJS := (liteServerPrepare in fastOptJS).dependsOn(systemJS in fastOptJS).value,
+//    liteServerPrepare in fullOptJS := (liteServerPrepare in fullOptJS).dependsOn(systemJS in fullOptJS).value
+  )
 
 
   private def perScalaJSStageSettings(stage: Stage): Seq[Def.Setting[_]] = {
@@ -59,7 +71,7 @@ object SystemJSPlugin extends AutoPlugin {
 
   private def defineSystemJSFile(scope: Any) = scope match {
     case scoped: Scoped =>
-      systemJSFile in scoped := utils.fileWithScalaJSStageSuffix((crossTarget in (Compile,scoped)).value,"systemjs-",scoped,".config.js")
+      systemJSFile in scoped := utils.fileWithScalaJSStageSuffix((crossTarget in (NodeAssets,scoped)).value,"systemjs-",scoped,".config.js")
   }
 
   private def defineSystemJSPaths(scoped: Scoped) =
@@ -84,6 +96,7 @@ object SystemJSPlugin extends AutoPlugin {
       val file = (systemJSFile in scoped).value
 
       if(lastrun.isEmpty || lastrun.get.needsUpdateComparedToConfig(baseDirectory.value)) {
+        streams.value.log.info(s"Writing System.js configuration for ${scoped.key.label}")
         writeSystemJSFile(
           file = file,
           paths = (systemJSPaths in scoped).value,
