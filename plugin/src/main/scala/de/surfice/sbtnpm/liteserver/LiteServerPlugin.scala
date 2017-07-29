@@ -51,8 +51,6 @@ object LiteServerPlugin extends AutoPlugin {
     val liteServerStop: TaskKey[Unit] =
       taskKey("Stops the node lite-server for the current stage (fastOptJS or fullOptJS")
 
-//    val liteServerWriteIndexFile: TaskKey[File] =
-//      taskKey("Creates the index.html file for the current stage (fastOptJS or fullOptJS")
 
     val liteServerRun: TaskKey[Unit] =
       taskKey("Compiles the project and runs the node lite-server for the current stage (fastOptJS or fullOptJS")
@@ -119,10 +117,7 @@ object LiteServerPlugin extends AutoPlugin {
   private def defineLiteServerIndexFile(scoped: Scoped) =
     liteServerIndexFile in scoped := {
       val baseDir = (liteServerBaseDir in scoped).value
-      if(scoped.key.label == "fastOptJS")
-        utils.fileWithScalaJSStageSuffix(baseDir,"index-",scoped,".html")
-      else
-        baseDir / "index.html"
+      utils.fileWithScalaJSStageSuffix(baseDir,"index-",scoped,".html")
     }
 
   private def defineLiteServerRoutes(scoped: Scoped) =
@@ -132,17 +127,18 @@ object LiteServerPlugin extends AutoPlugin {
     liteServerPrepare in scoped := {
       val log = streams.value.log
       val stageName = scoped.key.label
-//      log.info(s"preparing lite-server environment for $stageName")
+      log.info(s"preparing lite-server environment for $stageName")
 
-//      val srcIndexFile = (liteServerIndexFile in scoped).value
-//      val tgtDir = (crossTarget in (NodeAssets,scoped)).value
-//      val tgtIndexFile = tgtDir / "index.html"
-      val indexFile = (liteServerIndexFile in scoped).value
+      val srcIndexFile = (liteServerIndexFile in scoped).value
+      val tgtDir = (crossTarget in (NodeAssets,scoped)).value
+      val tgtIndexFile = tgtDir / "index.html"
 
-      if(!indexFile.exists())
-        log.warn(s"File $indexFile defined by (liteServerIndexFile in $stageName) does not exist - lite-server configuration will probably fail")
-//      else
-//        IO.copyFile(srcIndexFile,tgtIndexFile)
+      if(!tgtIndexFile.exists()) {
+        if (!srcIndexFile.exists())
+          log.warn(s"File $srcIndexFile defined by (liteServerIndexFile in $stageName) does not exist - lite-server configuration will probably fail")
+        else
+          IO.copyFile(srcIndexFile, tgtIndexFile)
+      }
     }
 
   private def defineLiteServerWriteConfigFile(scoped: Scoped) =
@@ -150,15 +146,6 @@ object LiteServerPlugin extends AutoPlugin {
       val lastrun = (liteServerWriteConfigFile in scoped).previous
       val file = (liteServerConfigFile in scoped).value
       val baseDir = (liteServerBaseDir in scoped).value
-//      val indexFile = baseDir / "index.html"
-//      val indexFile = (liteServerWriteIndexFile in scoped).value
-//      val indexPath = indexFile.relativeTo(baseDir) match {
-//        case Some(p) => p.getPath()
-//        case None =>
-//          streams.value.log.error(s"index file $indexFile must be a child of base directory $baseDir")
-//          ""
-//      }
-
 
       if(lastrun.isEmpty || lastrun.get.needsUpdateComparedToConfig(baseDirectory.value)) {
         writeConfigFile(file,
@@ -173,7 +160,6 @@ object LiteServerPlugin extends AutoPlugin {
   private def defineLiteServerStart(scoped: Scoped) =
     liteServerStart in scoped := {
       npmInstall.value
-//      (liteServerWriteConfigFile in scoped).value
       val cmd = liteServerCmd.value
       val configFile = (liteServerConfigFile in scoped).value
 
@@ -185,18 +171,6 @@ object LiteServerPlugin extends AutoPlugin {
       liteServerCmd.value.destroy(scoped,streams.value.log)
     }
 
-//  private def defineLiteServerWriteIndexFile(scoped: Scoped) =
-//    liteServerWriteIndexFile in scoped := {
-//      val src = (liteServerIndexFile in scoped).value
-//      val basedir = (liteServerBaseDir in scoped).value
-//      val dest = basedir / src.getName
-//      val dest = utils.fileWithScalaJSStageSuffix((liteServerBaseDir in scoped).value,"index-",scoped,".html")
-//      if(src.exists)
-//        IO.copy(Seq((src,dest)),overwrite = true)
-//      else
-//        streams.value.log.warn(s"File ${src} defined by (liteServerIndexFile in ${scoped.key.label}) does not exist - lite-server configuration will probably fail")
-//      dest
-//    }
 
   private def addNpmScript(scoped: Scoped) =
     npmScripts += {
@@ -204,20 +178,6 @@ object LiteServerPlugin extends AutoPlugin {
       (scoped.key.label, "lite-server --config="+lsConfigFile.getAbsolutePath)
     }
 
-//  private def defineLiteServer(stageTask: TaskKey[Attributed[File]]) =
-//    liteServer in stageTask := {
-//      npmInstall.value
-//      (liteServerWriteConfigFile in stageTask).value
-//      (stageTask in Compile).value
-//
-//      val cmd = liteServerCmd.value
-//      val configFile = (liteServerConfigFile in stageTask).value
-//      val cwd = npmTargetDir.value
-//      cmd.run("-c",configFile.getAbsolutePath)(cwd,streams.value.log)
-//      cmd.start("-c",configFile.getAbsolutePath)(streams.value.log,waitAndKillOnInput = true)
-//
-//
-//    }
 
 
   private def writeConfigFile(file: File, baseDir: String, indexFile: String, routes: Iterable[(String,String)]) = {

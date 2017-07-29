@@ -1,4 +1,4 @@
-version in ThisBuild := "0.0.3"
+version in ThisBuild := "0.0.4-SNAPSHOT"
 
 scalaVersion in ThisBuild := "2.10.6"
 
@@ -6,11 +6,12 @@ organization in ThisBuild := "de.surfice"
 
 // default versions of npm packages required by plugins
 val Versions = new {
-  val liteServer   = "^2.3.0"
-  val webpack      = "^3.3.0"
-  val css_loader   = "^0.28.4"
-  val html_loader  = "^0.4.5"
-  val style_loader = "^0.18.2"
+  val liteServer           = "^2.3.0"
+  val webpack              = "^3.3.0"
+  val css_loader           = "^0.28.4"
+  val html_loader          = "^0.4.5"
+  val style_loader         = "^0.18.2"
+  val systemjs_plugin_text = "^0.0.11"
 }
 
 
@@ -43,6 +44,7 @@ lazy val plugin = project
         |  val style_loader = "${Versions.style_loader}"
         |  val css_loader = "${Versions.css_loader}"
         |  val html_loader = "${Versions.html_loader}"
+        |  val systemjs_plugin_text = "${Versions.systemjs_plugin_text}"
         |}
         """.stripMargin)
       Seq(file)

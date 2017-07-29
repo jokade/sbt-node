@@ -5,6 +5,7 @@ package de.surfice.sbtnpm.utils
 
 import sbt.Logger
 
+import scala.annotation.tailrec
 import scala.language.implicitConversions
 
 sealed trait JsonNode
@@ -36,16 +37,23 @@ object JsonNode {
   implicit def dnumProp(kv: (Symbol,Double)): (String,DNum) = kv._1.name -> Num(kv._2)
   implicit def inumProp(kv: (Symbol,Int)): (String,INum) = kv._1.name -> Num(kv._2)
 //  implicit def nodesToObj(values: Iterable[(String,JsonNode)]): Obj = Obj(values)
-  implicit def iterable(values: Iterable[(String,Any)]): Iterable[(String,JsonNode)] = values map {
+  implicit def iterable(values: Iterable[(String,Any)]): Iterable[(String,JsonNode)] = values.toSeq map {
     case (key,str:String) => (key,Str(str))
     case (key,bool:Boolean) => (key,Bool(bool))
     case (key,int:Int) => (key,INum(int))
     case (key,dbl:Double) => (key,DNum(dbl))
   }
 
-  case class Obj(nodes: Iterable[(String,JsonNode)]) extends JsonNode
+  implicit def jsonNodeMap(values: Iterable[(String,JsonNodeGenerator)]): Iterable[(String,JsonNode)] =
+    values.map( p => p.copy(_2 = p._2.toJsonNode))
+
+  case class Obj(nodes: Iterable[(String,JsonNode)]) extends JsonNode {
+    def :+(node: (String,JsonNode)): Obj = copy(nodes = nodes.toSeq :+ node)
+  }
+
   object Obj {
     def apply(nodes: (String,JsonNode)*): Obj = Obj(nodes)
+//    def apply(nodes: Iterable[(String,JsonNode)]): Obj = Obj(nodes.toSeq)
   }
 
   case class Arr(values: Iterable[JsonNode]) extends JsonNode
@@ -73,7 +81,7 @@ object JsonWriter {
   class StringWriter extends JsonWriter {
     val builder = StringBuilder.newBuilder
 
-    override def write(node: JsonNode, prefix: String = "", suffix: String = ""): Unit = node match {
+    final override def write(node: JsonNode, prefix: String = "", suffix: String = ""): Unit = node match {
       case Raw(value) =>
         builder ++= value + suffix
       case Str(value) =>
@@ -125,4 +133,8 @@ abstract class JsonFile {
     logger.debug(s"writing $path")
     sbt.IO.write(path,json.toJson)
   }
+}
+
+trait JsonNodeGenerator {
+  def toJsonNode: JsonNode
 }

@@ -8,8 +8,8 @@ import Keys._
 import Cache._
 import de.surfice.sbtnpm.assets.AssetsPlugin
 import de.surfice.sbtnpm.liteserver.LiteServerPlugin
-import de.surfice.sbtnpm.{NpmPlugin, utils}
-import de.surfice.sbtnpm.utils.FileWithLastrun
+import de.surfice.sbtnpm.{NpmPlugin, Versions, utils}
+import de.surfice.sbtnpm.utils.{FileWithLastrun, JsonNode, JsonNodeGenerator}
 import org.scalajs.sbtplugin.{ScalaJSPluginInternal, Stage}
 
 object SystemJSPlugin extends AutoPlugin {
@@ -25,14 +25,8 @@ object SystemJSPlugin extends AutoPlugin {
     val systemJSFile: SettingKey[File] =
       settingKey("Path to the systemjs.config.js file (scoped to fastOptJS or fullOptJS)")
 
-    val systemJSPaths: SettingKey[Seq[(String,String)]] =
-      settingKey("Entries to be put into the System.js config 'paths' object")
-
-    val systemJSMappings: SettingKey[Seq[(String,String)]] =
-      settingKey("Entries to be put into the System.js config 'map' object (the key 'app' is assigned automatically!)")
-
-    val systemJSPackages: SettingKey[Seq[(String,SystemJSPackage)]] =
-      settingKey("System.js package definitions (the package 'app' is defined automatically!)")
+    val systemJSConfig: SettingKey[SystemJSConfig] =
+      settingKey("SystemJS configuration (scoped to fastOptJS or fullOptJS")
 
     val systemJS: TaskKey[FileWithLastrun] =
       taskKey("Writes the System.js config file for the current stage (fastOptJS, fullOptJS)")
@@ -40,10 +34,11 @@ object SystemJSPlugin extends AutoPlugin {
 
   import autoImport._
   import AssetsPlugin.autoImport._
-  import LiteServerPlugin.autoImport._
+  import NpmPlugin.autoImport._
   import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
+    npmDependencies += "systemjs-plugin-text" -> Versions.systemjs_plugin_text
   ) ++
     perScalaJSStageSettings(Stage.FullOpt) ++
     perScalaJSStageSettings(Stage.FastOpt) ++
@@ -51,8 +46,6 @@ object SystemJSPlugin extends AutoPlugin {
 
     (fastOptJS in Compile) := (fastOptJS in Compile).dependsOn(systemJS in fastOptJS).value,
     (fullOptJS in Compile) := (fullOptJS in Compile).dependsOn(systemJS in fullOptJS).value
-//    liteServerPrepare in fastOptJS := (liteServerPrepare in fastOptJS).dependsOn(systemJS in fastOptJS).value,
-//    liteServerPrepare in fullOptJS := (liteServerPrepare in fullOptJS).dependsOn(systemJS in fullOptJS).value
   )
 
 
@@ -62,9 +55,7 @@ object SystemJSPlugin extends AutoPlugin {
 
     Seq(
       defineSystemJSFile(stageTask),
-      defineSystemJSPaths(stageTask),
-      defineSystemJSMappings(stageTask),
-      defineSystemJSPackages(stageTask),
+      defineSystemJSConfig(stageTask),
       defineSystemJSTask(stageTask)
     )
   }
@@ -74,21 +65,25 @@ object SystemJSPlugin extends AutoPlugin {
       systemJSFile in scoped := utils.fileWithScalaJSStageSuffix((crossTarget in (NodeAssets,scoped)).value,"systemjs-",scoped,".config.js")
   }
 
-  private def defineSystemJSPaths(scoped: Scoped) =
-    systemJSPaths in scoped := Seq(
-      "npm:" -> "node_modules/"
+  private def defineSystemJSConfig(scoped: Scoped) =
+    systemJSConfig in scoped := SystemJSConfig(
+      paths = Seq("npm:" -> "node_modules/"),
+      mappings = Seq(
+        "app" -> "./",
+        "text_loader" -> "npm:systemjs-plugin-text/text.js"
+      ),
+      packages = Seq(
+        "app" -> SystemJSPackage(
+          main = Some("./" + (artifactPath in (Compile,scoped)).value.getName),
+          format = Some("cjs"),
+          defaultExtension = Some("js")
+        )
+      ),
+      meta = Seq(
+        "*.html" -> Meta(loader = Some("text_loader")),
+        "*.css"  -> Meta(loader = Some("text_loader"))
+      )
     )
-
-  private def defineSystemJSMappings(scoped: Scoped) =
-    systemJSMappings in scoped := Seq( "app" -> "./" )
-//      systemJSMappings in scoped := Seq( "app" -> (crossTarget in (Compile,scoped)).value.relativeTo(baseDirectory.value).get.getPath )
-
-  private def defineSystemJSPackages(scoped: Scoped) =
-      systemJSPackages in scoped := Seq( "app" -> SystemJSPackage(
-        main = Some("./"+(artifactPath in (Compile,scoped)).value.getName),
-        format = Some("cjs"),
-        defaultExtension = Some("js")
-      ))
 
   private def defineSystemJSTask(scoped: Scoped) =
     systemJS in scoped := {
@@ -99,9 +94,7 @@ object SystemJSPlugin extends AutoPlugin {
         streams.value.log.info(s"Writing System.js configuration for ${scoped.key.label}")
         writeSystemJSFile(
           file = file,
-          paths = (systemJSPaths in scoped).value,
-          mappings = (systemJSMappings in scoped).value,
-          packages = (systemJSPackages in scoped).value)
+          config = (systemJSConfig in scoped).value)
         FileWithLastrun(file)
       }
       else
@@ -109,24 +102,66 @@ object SystemJSPlugin extends AutoPlugin {
     }
 
   private def writeSystemJSFile(file: File,
-                                paths: Iterable[(String,String)],
-                                mappings: Iterable[(String,String)],
-                                packages: Iterable[(String,SystemJSPackage)]): Unit = {
+                                config: SystemJSConfig): Unit = {
+    import de.surfice.sbtnpm.utils.JsonNode._
+    val configNode = Obj(
+      'meta -> Obj(config.meta),
+      'paths -> Obj(config.paths),
+      'map -> Obj(config.mappings),
+      'packages -> Obj(config.packages.map(p => p.copy(_2 = p._2.toJsonNode)))
+    )
+
     val js =
       s"""(function (global) {
-         |  System.config({
-         |    paths: {
-         |${paths.map(kv => "      '"+kv._1+"': '"+kv._2+"'").mkString(",\n")}
-         |    },
-         |    map: {
-         |${mappings.map(kv => "      '"+kv._1+"': '"+kv._2+"'").mkString(",\n")}
-         |    },
-         |    packages: {
-         |${packages.map(kv => "      '"+kv._1+"': "+kv._2.toJS("        ")).mkString(",\n")}
-         |    }
-         |  });
+         |  System.config(
+         |${configNode.toJson("  ")}
+         |  );
          |})(this);
-       """.stripMargin
+      """.stripMargin
     IO.write(file,js)
   }
+
+  case class SystemJSConfig(paths: Seq[(String,String)],
+                            mappings: Seq[(String,String)],
+                            packages: Seq[(String,SystemJSPackage)],
+                            meta: Seq[(String,Meta)]) {
+    def withPaths(paths: Iterable[(String,String)]): SystemJSConfig = copy(paths = paths.toSeq)
+    def addPaths(seq: (String,String)*): SystemJSConfig = copy(paths = paths ++ seq)
+    def withMappings(mappings: Iterable[(String,String)]): SystemJSConfig = copy(mappings = mappings.toSeq)
+    def addMappings(seq: (String,String)*): SystemJSConfig = copy(mappings = mappings ++ seq)
+    def withPackages(packages: Iterable[(String,SystemJSPackage)]): SystemJSConfig = copy(packages = packages.toSeq)
+    def addPackages(seq: (String,SystemJSPackage)*): SystemJSConfig = copy(packages = packages ++ seq )
+    def withMeta(meta: Iterable[(String,Meta)]): SystemJSConfig = copy(meta = meta.toSeq)
+    def addMeta(path: String, loader: Option[String] = None): SystemJSConfig = copy(meta = meta :+ path -> Meta(
+      loader = loader
+    ))
+  }
+
+  case class Meta(loader: Option[String] = None) extends JsonNodeGenerator {
+    def toJsonNode: JsonNode = {
+      import JsonNode._
+      var node = Obj()
+      if(loader.isDefined)
+        node :+= 'loader -> loader.get
+      node
+    }
+  }
+
+  case class SystemJSPackage(main: Option[String] = None,
+                          format: Option[String] = None,
+                          defaultExtension: Option[String] = None) extends JsonNodeGenerator {
+
+  def toJsonNode: JsonNode = {
+    import JsonNode._
+    var node = Obj()
+    if(main.isDefined)
+      node :+= 'main -> main.get
+    if(format.isDefined)
+      node :+= 'format -> format.get
+    if(defaultExtension.isDefined)
+      node :+= 'defaultExtension -> defaultExtension.get
+    node
+  }
+}
+
 }
