@@ -24,8 +24,6 @@ object SassPlugin extends AutoPlugin {
     /**
      * Version of the `node-sass` npm module.
      */
-//    val nodeSassVersion: SettingKey[String] =
-//      settingKey[String]("node-sass version")
 
     /**
      * Defines the node-sass command to be used
@@ -33,11 +31,11 @@ object SassPlugin extends AutoPlugin {
     val sassCommand: SettingKey[NodeCommand] =
       settingKey[NodeCommand]("node-sass command")
 
-    val sassTarget: SettingKey[File] =
-      settingKey[File]("target directory for compiled sass files (may be scoped to fastOptJS and fullOptJS)")
+    val sassTarget: TaskKey[File] =
+      taskKey[File]("target directory for compiled sass files (may be scoped to fastOptJS and fullOptJS)")
 
-    val sassSourceDirectories: SettingKey[Seq[File]] =
-      settingKey[Seq[File]]("list of source directories that contain files to be processed by sass (may be scoped to fastOptJS and fullOptJS)")
+    val sassSourceDirectories: TaskKey[Seq[File]] =
+      taskKey[Seq[File]]("list of source directories that contain files to be processed by sass (may be scoped to fastOptJS and fullOptJS)")
 
     val sassInputs: TaskKey[Seq[Attributed[(File,String)]]] =
       taskKey("Contains all sass input files to be processed (may be scoped to fastOptJS and fullOptJS)")
@@ -47,22 +45,13 @@ object SassPlugin extends AutoPlugin {
   }
 
   import autoImport._
+  import de.surfice.sbtnpm.ConfigPlugin.autoImport._
   import AssetsPlugin.autoImport._
 
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
-//    nodeSassVersion := "~4.5.2",
 
     sassCommand := NodeCommand(npmNodeModulesDir.value,"node-sass","node-sass")
 
-//    defineSassSourceDirectories(Compile),
-
-//    defineSassTarget(Compile),
-
-//    defineSassInputs(Compile),
-
-//    defineSassTask(Compile,nodeSassTarget in Compile),
-
-//    npmDevDependencies += "node-sass" -> nodeSassVersion.value
   ) ++
     perScalaJSStageSettings(Stage.FullOpt) ++
     perScalaJSStageSettings(Stage.FastOpt)
@@ -123,12 +112,17 @@ object SassPlugin extends AutoPlugin {
     }
   }
 
-  private def defineSassSourceDirectories(scoped: Scoped) = {
-      sassSourceDirectories in scoped := (sourceDirectories in (NodeAssets,scoped)).value
-      .map( _ / "sass" )
-  }
+  private def defineSassSourceDirectories(scoped: Scoped) =
+    sassSourceDirectories in scoped := {
+      val prefix = npmProjectConfig.value.getString("sass.source-prefix")
+      (sourceDirectories in (NodeAssets,scoped)).value
+      .map( _ / prefix )
+    }
 
   private def defineSassTarget(scoped: Scoped) =
-    sassTarget in scoped := (crossTarget in (NodeAssets,scoped)).value / "css"
+    sassTarget in scoped := {
+      val prefix = npmProjectConfig.value.getString("sass.target-prefix")
+      (crossTarget in (NodeAssets,scoped)).value / prefix
+    }
 
 }

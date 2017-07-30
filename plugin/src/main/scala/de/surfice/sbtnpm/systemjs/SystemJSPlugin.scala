@@ -35,7 +35,7 @@ object SystemJSPlugin extends AutoPlugin {
 
   import autoImport._
   import AssetsPlugin.autoImport._
-  import NpmPlugin.autoImport._
+  import de.surfice.sbtnpm.ConfigPlugin.autoImport._
   import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
@@ -67,18 +67,18 @@ object SystemJSPlugin extends AutoPlugin {
 
   private def defineSystemJSConfig(scoped: Scoped) =
     systemJSConfig in scoped := {
-      val libConfig = npmLibraryConfig.value
+      val projectConfig = npmProjectConfig.value
       SystemJSConfig(
         paths = Seq("npm:" -> "node_modules/"),
-        mappings = libConfig.getStringMap("systemjs.map").toSeq,
+        mappings = projectConfig.getStringMap("systemjs.map").toSeq,
         packages = Seq(
-          "app" -> SystemJSPackage(
+          "$app$" -> SystemJSPackage(
             main = Some("./" + (artifactPath in (Compile,scoped)).value.getName),
             format = Some("cjs"),
             defaultExtension = Some("js")
           )
         ),
-        meta = loadLibraryConfigMeta(libConfig)
+        meta = loadLibraryConfigMeta(projectConfig)
       )
     }
 
