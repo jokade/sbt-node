@@ -6,21 +6,25 @@ package de.surfice.sbtnpm
 import sbt._
 import Keys._
 import Cache._
+import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
 
 package object utils {
   def fileWithScalaJSStageSuffix(dir: File, filePrefix: String, stage: Scoped, fileSuffix: String): File =
     dir / (filePrefix + stage.key.toString.dropRight(2).toLowerCase() + fileSuffix)
 
-//  def defineConfigDependentFileTask(taskKey: TaskKey[FileWithLastrun], writeFile: =>File, scope: Option[Any] = None) = {
-//    val task = scope match {
-//        case Some(scoped:Scoped) => taskKey in scoped
-//        case None => taskKey
-//    }
-//    task := {
-//      val lastrun = task.previous
-//      if(lastrun.isEmpty || lastrun.get.needsUpdateComparedToConfig(baseDirectory.value)) {
-//        FileWithLastrun( writeFile )
-//      }
-//      else lastrun.get
-//    }}
+
+  implicit final class RichConfig(val config: Config) extends AnyVal {
+    import collection.JavaConverters._
+    def getStringMap(path: String): Map[String,String] =  config.withOnlyPath(path).entrySet().asScala
+      .map(p => keySuffix(path,p.getKey) -> config.getString(p.getKey))
+      .toMap
+
+    def getConfigMap(path: String): Map[String,Config] =
+      config.getObject(path).asScala.map(p => p._1 -> p._2).map {
+        case (key,obj:ConfigObject) => (key,obj.toConfig)
+      }.toMap
+
+    private def stripQuotes(key: String): String = key.replaceAll("\"","")
+    private def keySuffix(path: String, key: String): String = stripQuotes(key).stripPrefix(path+".")
+  }
 }

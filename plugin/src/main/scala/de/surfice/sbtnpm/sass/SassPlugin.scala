@@ -10,10 +10,11 @@ import org.scalajs.sbtplugin.{ScalaJSPluginInternal, Stage}
 import sbt._
 import Keys._
 import Cache._
+import de.surfice.sbtnpm.assets.AssetsPlugin
 
 object SassPlugin extends AutoPlugin {
 
-  override lazy val requires = NpmPlugin
+  override lazy val requires = NpmPlugin && AssetsPlugin
 
   /**
    * @groupname tasks Tasks
@@ -23,44 +24,45 @@ object SassPlugin extends AutoPlugin {
     /**
      * Version of the `node-sass` npm module.
      */
-    val nodeSassVersion: SettingKey[String] =
-      settingKey[String]("node-sass version")
+//    val nodeSassVersion: SettingKey[String] =
+//      settingKey[String]("node-sass version")
 
     /**
      * Defines the node-sass command to be used
      */
-    val nodeSassCmd: SettingKey[NodeCommand] =
+    val sassCommand: SettingKey[NodeCommand] =
       settingKey[NodeCommand]("node-sass command")
 
-    val nodeSassTarget: SettingKey[File] =
+    val sassTarget: SettingKey[File] =
       settingKey[File]("target directory for compiled sass files (may be scoped to fastOptJS and fullOptJS)")
 
-    val nodeSassSourceDirectories: SettingKey[Seq[File]] =
+    val sassSourceDirectories: SettingKey[Seq[File]] =
       settingKey[Seq[File]]("list of source directories that contain files to be processed by sass (may be scoped to fastOptJS and fullOptJS)")
 
-    val nodeSassInputs: TaskKey[Seq[Attributed[(File,String)]]] =
+    val sassInputs: TaskKey[Seq[Attributed[(File,String)]]] =
       taskKey("Contains all sass input files to be processed (may be scoped to fastOptJS and fullOptJS)")
 
-    val nodeSass: TaskKey[Long] =
+    val sass: TaskKey[Long] =
       taskKey[Long]("Runs the sass compiler")
   }
 
   import autoImport._
+  import AssetsPlugin.autoImport._
 
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
-    nodeSassVersion := "~4.5.2",
+//    nodeSassVersion := "~4.5.2",
 
-    nodeSassCmd := NodeCommand(npmNodeModulesDir.value,"node-sass","node-sass"),
+    sassCommand := NodeCommand(npmNodeModulesDir.value,"node-sass","node-sass")
 
-    defineSassSourceDirectories(Compile),
+//    defineSassSourceDirectories(Compile),
 
-    defineSassTarget(Compile),
+//    defineSassTarget(Compile),
 
-    defineSassInputs(Compile),
+//    defineSassInputs(Compile),
 
-    defineSassTask(Compile,nodeSassTarget in Compile),
+//    defineSassTask(Compile,nodeSassTarget in Compile),
 
-    npmDevDependencies += "node-sass" -> nodeSassVersion.value
+//    npmDevDependencies += "node-sass" -> nodeSassVersion.value
   ) ++
     perScalaJSStageSettings(Stage.FullOpt) ++
     perScalaJSStageSettings(Stage.FastOpt)
@@ -74,21 +76,19 @@ object SassPlugin extends AutoPlugin {
       defineSassSourceDirectories(stageTask),
       defineSassTarget(stageTask),
       defineSassInputs(stageTask),
-      nodeSassTarget in stageTask := (crossTarget in (Compile,stageTask)).value,
-      defineSassTask(stageTask,nodeSassTarget in stageTask)
+      defineSassTask(stageTask)
     )
   }
 
-  private def defineSassTask(scope: Any, targetDir: SettingKey[File]) = {
-    val (task, inputs, targetDir) = scope match {
-      case scoped: Scoped => (nodeSass in scoped, nodeSassInputs in (Compile,scoped), nodeSassTarget in (Compile,scoped))
-      case config: Configuration => (nodeSass in config, nodeSassInputs in config, nodeSassTarget in config)
-    }
+  private def defineSassTask(scoped: Scoped) = {
+    val (task, inputs, targetDir) = (sass in scoped, sassInputs in scoped, sassTarget in scoped)
     task := {
-      val lastrun = task.previous
       npmInstall.value
+      val lastrun = task.previous
       val cwd = targetDir.value
-      val sass = nodeSassCmd.value
+      if(!cwd.exists())
+        IO.createDirectory(cwd)
+      val sass = sassCommand.value
       val logger = streams.value.log
       var modified = false
       inputs.value.foreach{ f =>
@@ -106,11 +106,8 @@ object SassPlugin extends AutoPlugin {
     }
   }
 
-  private def defineSassInputs(scope: Any) = {
-    val (task,sourceDirs) = scope match {
-      case scoped: Scoped => (nodeSassInputs in scoped,nodeSassSourceDirectories in (Compile,scoped))
-      case config: Configuration => (nodeSassInputs in config, nodeSassSourceDirectories in config)
-    }
+  private def defineSassInputs(scoped: Scoped) = {
+    val (task,sourceDirs) = (sassInputs in scoped,sassSourceDirectories in scoped)
     task := {
       Attributed.blankSeq( sourceDirs.value flatMap { dir =>
         val fs = (dir ** "*").get.filter{ f =>
@@ -126,17 +123,12 @@ object SassPlugin extends AutoPlugin {
     }
   }
 
-  private def defineSassSourceDirectories(scope: Any) = scope match {
-    case scoped: Scoped =>
-      nodeSassSourceDirectories in (Compile,scoped) := (resourceDirectories in (Compile,scoped)).value
-    case config: Configuration => nodeSassSourceDirectories in config := (resourceDirectories in config).value
+  private def defineSassSourceDirectories(scoped: Scoped) = {
+      sassSourceDirectories in scoped := (sourceDirectories in (NodeAssets,scoped)).value
+      .map( _ / "sass" )
   }
 
-  private def defineSassTarget(scope: Any) = scope match {
-    case scoped: Scoped =>
-      nodeSassTarget in (Compile,scoped) := (crossTarget in (Compile,scoped)).value / "css"
-    case config: Configuration =>
-      nodeSassTarget in config := (crossTarget in config).value / "css"
-  }
+  private def defineSassTarget(scoped: Scoped) =
+    sassTarget in scoped := (crossTarget in (NodeAssets,scoped)).value / "css"
 
 }

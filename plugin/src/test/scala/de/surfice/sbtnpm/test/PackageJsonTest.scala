@@ -15,7 +15,9 @@ object PackageJsonTest extends TestSuite {
       ),
       devDependencies = Map(
         "devDep" -> "1.2.3"
-      )
+      ),
+      main = Some("main"),
+      scripts = Seq("start"->"start")
     )
     assert(eut.json.toJson ==
       """{
@@ -28,6 +30,10 @@ object PackageJsonTest extends TestSuite {
         |  },
         |  "devDependencies": {
         |    "devDep": "1.2.3"
+        |  },
+        |  "main": "main",
+        |  "scripts": {
+        |    "start": "start"
         |  }
         |}""".stripMargin)
   }

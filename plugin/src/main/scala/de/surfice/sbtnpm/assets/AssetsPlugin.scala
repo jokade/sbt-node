@@ -22,8 +22,17 @@ object AssetsPlugin extends AutoPlugin {
   import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 
   override def projectSettings: Seq[Def.Setting[_]] = Seq(
-    resourceDirectories in (NodeAssets,fastOptJS) := Seq( sourceDirectory.value / "main" / "public" ),
-    resourceDirectories in (NodeAssets,fullOptJS) := Seq( sourceDirectory.value / "main" / "public" ),
+    resourceDirectory in (NodeAssets, fastOptJS) := sourceDirectory.value / "main" / "public",
+    resourceDirectory in (NodeAssets, fullOptJS) := sourceDirectory.value / "main" / "public",
+
+    resourceDirectories in (NodeAssets,fastOptJS) := Seq( (resourceDirectory in (NodeAssets,fastOptJS)).value ),
+    resourceDirectories in (NodeAssets,fullOptJS) := Seq( (resourceDirectory in (NodeAssets,fullOptJS)).value ),
+
+    sourceDirectory in (NodeAssets, fastOptJS) := sourceDirectory.value / "main" / "assets",
+    sourceDirectory in (NodeAssets, fullOptJS) := sourceDirectory.value / "main" / "assets",
+
+    sourceDirectories in (NodeAssets, fastOptJS) := Seq( (sourceDirectory in (NodeAssets,fastOptJS)).value ),
+    sourceDirectories in (NodeAssets, fullOptJS) := Seq( (sourceDirectory in (NodeAssets,fullOptJS)).value ),
 
     crossTarget in (NodeAssets,fastOptJS) := (crossTarget in fastOptJS).value / "fastopt",
     crossTarget in (NodeAssets,fullOptJS) := (crossTarget in fastOptJS).value / "fullopt",

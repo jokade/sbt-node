@@ -53,14 +53,8 @@ object WebpackPlugin extends AutoPlugin {
   import NpmPlugin.autoImport._
 
   override def projectSettings: Seq[Def.Setting[_]] = Seq(
-    webpackCmd := NodeCommand(npmNodeModulesDir.value,"webpack","webpack.js"),
+    webpackCmd := NodeCommand(npmNodeModulesDir.value,"webpack","webpack.js")
 
-    npmDevDependencies ++= Seq(
-      "webpack" -> Versions.webpack,
-      "style-loader" -> Versions.style_loader,
-      "css-loader" -> Versions.css_loader,
-      "html-loader" -> Versions.html_loader
-    )
   ) ++
     perScalaJSStageSettings(Stage.FullOpt) ++
     perScalaJSStageSettings(Stage.FastOpt)

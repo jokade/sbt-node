@@ -3,12 +3,17 @@
 // Description:
 package de.surfice.sbtnpm
 
+import java.io.{File => _, _}
+import java.net.JarURLConnection
+
 import de.surfice.sbtnpm.utils.{ExternalCommand, FileWithLastrun}
 import org.scalajs.sbtplugin.ScalaJSPlugin
 import sbt._
 import Keys._
 import Cache._
-import sbt.complete.Parser
+import com.typesafe.config.{Config, ConfigFactory}
+import sbt.impl.DependencyBuilders
+import utils._
 
 object NpmPlugin extends AutoPlugin {
   type NpmDependency = (String,String)
@@ -61,8 +66,8 @@ object NpmPlugin extends AutoPlugin {
     val npmPackageJsonFile: SettingKey[File] =
       settingKey[File]("Full path to the npm package.json file")
 
-    val npmPackageJson: SettingKey[PackageJson] =
-      settingKey[PackageJson]("Defines the contents of the npm package.json file")
+    val npmPackageJson: TaskKey[PackageJson] =
+      taskKey[PackageJson]("Defines the contents of the npm package.json file")
 
     val npmWritePackageJson: TaskKey[FileWithLastrun] =
       taskKey[FileWithLastrun]("Create the npm package.json file.")
@@ -86,12 +91,28 @@ object NpmPlugin extends AutoPlugin {
     val npmCmd: SettingKey[ExternalCommand] =
       settingKey[ExternalCommand]("npm command")
 
+    val npmLibraryConfig: TaskKey[Config] =
+      taskKey[Config]("Configuration loaded from package.conf files in libraries")
+
+    val npmLibraryDependencies: TaskKey[Seq[NpmDependency]] =
+      taskKey[Seq[NpmDependency]]("NPM dependencies defined by libraries")
+
+    val npmLibraryDevDependencies: TaskKey[Seq[NpmDependency]] =
+      taskKey[Seq[NpmDependency]]("NPM dev dependencies defined by libraries")
+
+    val npmProjectConfig: SettingKey[File] =
+      settingKey[File]("Project configuration file")
   }
 
 
   import autoImport._
 
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
+
+    libraryDependencies += DepBuilder.toGroupID("de.surfice") %% "sbt-node-config" % Versions.sbtNode,
+
+    npmProjectConfig := baseDirectory.value / "project.conf",
+
     npmCmd := ExternalCommand("npm"),
 
     npmTargetDir := baseDirectory.value,
@@ -113,8 +134,8 @@ object NpmPlugin extends AutoPlugin {
       name = name.value,
       version = version.value,
       description = description.value,
-      dependencies = npmDependencies.value,
-      devDependencies = npmDevDependencies.value,
+      dependencies = npmLibraryDependencies.value ++ npmDependencies.value,
+      devDependencies = npmLibraryDevDependencies.value ++ npmDevDependencies.value,
       main = npmMain.value,
       scripts = npmScripts.value
     ),
@@ -122,7 +143,10 @@ object NpmPlugin extends AutoPlugin {
     npmWritePackageJson := {
       val file = npmPackageJsonFile.value
       val lastrun = npmWritePackageJson.previous
-      if(lastrun.isEmpty || lastrun.get.needsUpdateComparedToConfig(baseDirectory.value)) {
+      val projectConfig = npmProjectConfig.value
+      val projectConfigIsNewer = projectConfig.canRead && projectConfig.lastModified() > lastrun.get.lastrun
+
+      if(lastrun.isEmpty || lastrun.get.needsUpdateComparedToConfig(baseDirectory.value) || projectConfigIsNewer) {
         npmPackageJson.value.writeFile()(streams.value.log)
         FileWithLastrun(file)
       }
@@ -133,7 +157,8 @@ object NpmPlugin extends AutoPlugin {
     npmInstall := {
       val file = npmWritePackageJson.value
       val lastrun = npmInstall.previous
-      if(lastrun.isEmpty || file.lastrun>lastrun.get) {
+      val dir = npmNodeModulesDir.value
+      if(lastrun.isEmpty || file.lastrun>lastrun.get || !dir.exists()) {
         ExternalCommand.npm.install(npmTargetDir.value.getCanonicalFile,npmNodeModulesDir.value.getCanonicalFile,streams.value.log)
         new java.util.Date().getTime
       }
@@ -147,7 +172,49 @@ object NpmPlugin extends AutoPlugin {
       npmInstall.value
       val script = spaceDelimited("<arg>").parsed.head
       ExternalCommand.npm.start("run-script",script)(streams.value.log,waitAndKillOnInput = true)
-    }
+    },
+
+    npmLibraryConfig := {
+      val configString = loadPackageConfigs((dependencyClasspath in Compile).value, npmProjectConfig.value)
+        .foldLeft("")( (s,in) => s + IO.readLines(new BufferedReader(new InputStreamReader(in))).mkString("\n") + "\n\n" )
+      ConfigFactory.parseString(configString).resolve()
+    },
+
+    npmLibraryDependencies := npmLibraryConfig.value.getStringMap("npm.dependencies").toSeq,
+    npmLibraryDevDependencies := npmLibraryConfig.value.getStringMap("npm.devDependencies").toSeq
   )
+
+  private def loadPackageConfigs(dependencyClasspath: Classpath, projectConfig: File) =
+    loadDepPackageConfigs(dependencyClasspath) ++ loadProjectConfig(projectConfig)
+
+  private def loadProjectConfig(projectConfig: File): Option[InputStream] =
+    if(projectConfig.canRead)
+      Some(fin(projectConfig))
+    else None
+
+  private def loadDepPackageConfigs(cp: Classpath): Seq[InputStream] = {
+    val (dirs,jars) = cp.files.partition(_.isDirectory)
+    loadJarPackageConfigs(jars) // ++ loadDirPackageConfigs(dirs,log)
+  }
+
+  private def loadJarPackageConfigs(jars: Seq[File]): Seq[InputStream] = {
+    val files = jars
+      .map( f => new URL("jar:" + f.toURI + "!/package.conf").openConnection() )
+      .map {
+        case c: JarURLConnection => try{
+          Some(c.getInputStream)
+        } catch {
+          case _: FileNotFoundException => None
+        }
+      }
+      .collect{
+        case Some(in) => in
+      }
+    files
+  }
+
+
+  private object DepBuilder extends DependencyBuilders
+  private def fin(file: File): BufferedInputStream = new BufferedInputStream(new FileInputStream(file))
 }
 

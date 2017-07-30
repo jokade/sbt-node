@@ -21,8 +21,8 @@ object LiteServerPlugin extends AutoPlugin {
    * @groupname settings Settings
    */
   object autoImport {
-    val liteServerVersion: SettingKey[String] =
-      settingKey("Version of lite-server to be used")
+//    val liteServerVersion: SettingKey[String] =
+//      settingKey("Version of lite-server to be used")
 
     val liteServerConfigFile: SettingKey[File] =
       settingKey("Path to the node lite-server config file (scoped to fastOptJS or fullOptJS)")
@@ -62,11 +62,9 @@ object LiteServerPlugin extends AutoPlugin {
   import AssetsPlugin.autoImport._
 
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
-    liteServerVersion := de.surfice.sbtnpm.Versions.liteServer,
+//    liteServerVersion := de.surfice.sbtnpm.Versions.liteServer,
 
     liteServerCmd := NodeCommand(npmNodeModulesDir.value,"lite-server","lite-server"),
-
-    npmDevDependencies += "lite-server" -> liteServerVersion.value,
 
     (liteServerRun in fastOptJS) := {
       val _ = (liteServerPrepare in fastOptJS).value
@@ -116,7 +114,7 @@ object LiteServerPlugin extends AutoPlugin {
 
   private def defineLiteServerIndexFile(scoped: Scoped) =
     liteServerIndexFile in scoped := {
-      val baseDir = (liteServerBaseDir in scoped).value
+      val baseDir = (resourceDirectory in (NodeAssets,scoped)).value
       utils.fileWithScalaJSStageSuffix(baseDir,"index-",scoped,".html")
     }
 
@@ -133,12 +131,12 @@ object LiteServerPlugin extends AutoPlugin {
       val tgtDir = (crossTarget in (NodeAssets,scoped)).value
       val tgtIndexFile = tgtDir / "index.html"
 
-      if(!tgtIndexFile.exists()) {
+//      if(!tgtIndexFile.exists()) {
         if (!srcIndexFile.exists())
           log.warn(s"File $srcIndexFile defined by (liteServerIndexFile in $stageName) does not exist - lite-server configuration will probably fail")
         else
           IO.copyFile(srcIndexFile, tgtIndexFile)
-      }
+//      }
     }
 
   private def defineLiteServerWriteConfigFile(scoped: Scoped) =
