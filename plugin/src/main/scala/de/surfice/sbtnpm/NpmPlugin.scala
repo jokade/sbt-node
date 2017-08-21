@@ -5,11 +5,13 @@ package de.surfice.sbtnpm
 
 import java.io.{File => _}
 
+import com.typesafe.config.Config
 import de.surfice.sbtnpm.utils.{ExternalCommand, FileWithLastrun}
 import sbt.Cache._
 import sbt.Keys._
 import sbt._
 import utils._
+import collection.JavaConverters._
 
 object NpmPlugin extends AutoPlugin {
   type NpmDependency = (String,String)
@@ -165,10 +167,15 @@ object NpmPlugin extends AutoPlugin {
     },
 
 
-    npmLibraryDependencies := npmProjectConfig.value.getStringMap("npm.dependencies").toSeq,
-    npmLibraryDevDependencies := npmProjectConfig.value.getStringMap("npm.devDependencies").toSeq
+    npmLibraryDependencies := loadNpmDependencies(npmProjectConfig.value,"npm.dependencies"), //npmProjectConfig.value.getStringMap("npm.dependencies").toSeq,
+    npmLibraryDevDependencies := loadNpmDependencies(npmProjectConfig.value,"npm.devDependencies")//npmProjectConfig.value.getStringMap("npm.devDependencies").toSeq
   )
 
+  private def loadNpmDependencies(config: Config, path: String) =
+    config.getConfigList(path).asScala
+      .flatMap(_.entrySet().asScala)
+      .map(p => (p.getKey.replaceAll("\"",""),p.getValue.unwrapped().toString))
+      .toSeq
 
 }
 

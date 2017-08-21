@@ -21,6 +21,9 @@ object ConfigPlugin extends AutoPlugin {
     val npmProjectConfig: TaskKey[Config] =
       taskKey[Config]("Configuration loaded from package.conf files in libraries")
 
+    val npmProjectConfigString: TaskKey[String] =
+      taskKey[String]("Concatenation of all package.conf and project.conf files")
+
     val npmProjectConfigFile: SettingKey[File] =
       settingKey[File]("Project configuration file")
   }
@@ -33,32 +36,36 @@ object ConfigPlugin extends AutoPlugin {
 
     npmProjectConfigFile := baseDirectory.value / "project.conf",
 
-    npmProjectConfig := {
-      val configString = loadPackageConfigs((dependencyClasspath in Compile).value, npmProjectConfigFile.value)
-        .foldLeft("")( (s,in) => s + IO.readLines(new BufferedReader(new InputStreamReader(in))).mkString("\n") + "\n\n" )
-      ConfigFactory.parseString(configString).resolve()
-    }
+    npmProjectConfigString :=
+      loadPackageConfigs((dependencyClasspath in Compile).value, npmProjectConfigFile.value)
+        .foldLeft(""){ (s,in) =>
+          s + "# SOURCE: "+in._1+"\n"+
+            IO.readLines(new BufferedReader(new InputStreamReader(in._2))).mkString("\n") + "\n\n"
+        },
+
+    npmProjectConfig :=
+      ConfigFactory.parseString(npmProjectConfigString.value).resolve()
 
   )
-  private def loadPackageConfigs(dependencyClasspath: Classpath, projectConfig: File) =
+  private def loadPackageConfigs(dependencyClasspath: Classpath, projectConfig: File): Seq[(String,InputStream)] =
     loadDepPackageConfigs(dependencyClasspath) ++ loadProjectConfig(projectConfig)
 
-  private def loadProjectConfig(projectConfig: File): Option[InputStream] =
+  private def loadProjectConfig(projectConfig: File): Option[(String,InputStream)] =
     if(projectConfig.canRead)
-      Some(fin(projectConfig))
+      Some((projectConfig.getAbsolutePath,fin(projectConfig)))
     else None
 
-  private def loadDepPackageConfigs(cp: Classpath): Seq[InputStream] = {
+  private def loadDepPackageConfigs(cp: Classpath): Seq[(String,InputStream)] = {
     val (dirs,jars) = cp.files.partition(_.isDirectory)
     loadJarPackageConfigs(jars) // ++ loadDirPackageConfigs(dirs,log)
   }
 
-  private def loadJarPackageConfigs(jars: Seq[File]): Seq[InputStream] = {
+  private def loadJarPackageConfigs(jars: Seq[File]): Seq[(String,InputStream)] = {
     val files = jars
-      .map( f => new URL("jar:" + f.toURI + "!/package.conf").openConnection() )
+      .map( f => (f.getName, new URL("jar:" + f.toURI + "!/package.conf").openConnection()) )
       .map {
-        case c: JarURLConnection => try{
-          Some(c.getInputStream)
+        case (f,c: JarURLConnection) => try{
+          Some((f,c.getInputStream))
         } catch {
           case _: FileNotFoundException => None
         }
