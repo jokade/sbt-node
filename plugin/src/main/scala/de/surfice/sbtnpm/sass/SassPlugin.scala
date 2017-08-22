@@ -45,12 +45,23 @@ object SassPlugin extends AutoPlugin {
   }
 
   import autoImport._
+  import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
   import de.surfice.sbtnpm.ConfigPlugin.autoImport._
   import AssetsPlugin.autoImport._
 
   override lazy val projectSettings: Seq[Def.Setting[_]] = Seq(
 
-    sassCommand := NodeCommand(npmNodeModulesDir.value,"node-sass","node-sass")
+    sassCommand := NodeCommand(npmNodeModulesDir.value,"node-sass","node-sass"),
+
+    fastOptJS in Compile := {
+      (sass in fastOptJS).value
+      (fastOptJS in Compile).value
+    },
+
+    fullOptJS in Compile := {
+      (sass in fullOptJS).value
+      (fullOptJS in Compile).value
+    }
 
   ) ++
     perScalaJSStageSettings(Stage.FullOpt) ++
