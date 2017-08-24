@@ -90,7 +90,7 @@ object SassPlugin extends AutoPlugin {
         IO.createDirectory(cwd)
       val sass = sassCommand.value
       val logger = streams.value.log
-      var modified = false
+      var modified = lastrun.isEmpty
       inputs.value.foreach{ f =>
         val (src,relDest) = f.data
         val dest = cwd / relDest
