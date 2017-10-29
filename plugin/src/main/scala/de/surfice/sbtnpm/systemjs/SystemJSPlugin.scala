@@ -77,7 +77,7 @@ object SystemJSPlugin extends AutoPlugin {
             format = Some("cjs"),
             defaultExtension = Some("js")
           )
-        ),
+        ) ++ loadLibraryConfigPackages(projectConfig),
         meta = loadLibraryConfigMeta(projectConfig)
       )
     }
@@ -165,8 +165,17 @@ object SystemJSPlugin extends AutoPlugin {
       node
     }
   }
+  object SystemJSPackage {
+    def fromConfig(config: Config): SystemJSPackage = SystemJSPackage(
+      main = if(config.hasPath("main")) Some(config.getString("main")) else None,
+      format = if(config.hasPath("format")) Some(config.getString("format")) else None,
+      defaultExtension = if(config.hasPath("defaultExtension")) Some(config.getString("defaultExtension")) else None
+    )
+  }
 
   private def loadLibraryConfigMeta(config: Config): Seq[(String,Meta)] = config.getConfigMap("systemjs.meta")
     .map(p => p._1 -> Meta.fromConfig(p._2)).toSeq
 
+  private def loadLibraryConfigPackages(config: Config): Seq[(String,SystemJSPackage)] = config.getConfigMap("systemjs.packages")
+    .map(p => p._1 -> SystemJSPackage.fromConfig(p._2)).toSeq
 }
