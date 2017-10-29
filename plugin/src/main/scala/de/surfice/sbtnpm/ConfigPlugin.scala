@@ -73,7 +73,9 @@ object ConfigPlugin extends AutoPlugin {
       .collect{
         case Some(in) => in
       }
-    files
+      // ensure that default configuration provided by sbt-node is loaded first
+      .partition(_._1.startsWith("sbt-node-config_"))
+    files._1 ++ files._2
   }
 
 
