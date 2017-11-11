@@ -39,7 +39,7 @@ It provides integration with the `npm` tool:
 
 #### sbt Settings
 - **`npmTargetDir`**: the root directory of the Node.js project; `node_modules` will be installed here unless `npmNodeModulesDir` is overriden.
-- **`npmNodeNodeModulesDir`**: full path to the `node_modules` dir. This can be set separately from `npmTargetDir` in case multiple projects shall share the same `node_modules` directory.<br/>
+- **`npmNodeModulesDir`**: full path to the `node_modules` dir. This can be set separately from `npmTargetDir` in case multiple projects shall share the same `node_modules` directory.<br/>
   *Note*: `npmNodeModulesDir` must be located in `npmTargetDir` or in any parent directory thereof!
 - **`npmDependencies`**: list of npm dependencies (name and version) the application/ library depends on at run time.<br/> 
   *Example*: `npmDependencies ++= Seq("rxjs" -> "^5.0.1")`
