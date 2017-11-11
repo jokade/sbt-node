@@ -28,7 +28,7 @@ lazy val root = project.in(file("."))
 ## Plugins
 The following sections list the sbt settings and tasks provided by each plugin.
 
-**Note**: If a plugin task depends on configuration files generated from settings (e.g. `package.json`), then these files will be updated if required, and the tasks using those files (e.g. `npmInstall`) will be run will be automatically.
+**Note**: If a plugin task depends on configuration files generated from settings (e.g. `package.json`), then these files will be updated if required, and the tasks using those files (e.g. `npmInstall`) will be run automatically.
 
 ### NpmPlugin
 This is the foundation required by all other plugins, but it can also be used on its own.
@@ -45,8 +45,6 @@ It provides integration with the `npm` tool:
   *Example*: `npmDependencies ++= Seq("rxjs" -> "^5.0.1")`
 - **`npmDevDependencies`**: list of npm compile time / development dependencies.<br/>
   *Example*: `npmDevDependencies ++= "Seq("lite-server" -> "^2.2.2")`
-- **`npmScripts`**: map of `script` entries to be added to the `package.json` file.<br/>
-  *Example*: `npmScripts ++= Seq( "start" -> "lite-server" )`
 - **`npmMain`**: value of the `main` property in the generated `package.json`.
 - **`npmScripts`**: sequence of key/value pairs to be added to the `scripts` section in the generated `package.json`.
   *Example*:<br/>
